@@ -5,19 +5,20 @@ import panel.Expression
 import panel.toValue
 import java.math.BigDecimal
 
-fun primes(): List<BigDecimal> {
-    val arr = Array(1000) { true }
-    for (i in 2..<1000) {
-        if (arr[i] == false) {
-            continue
-        }
-        for (j in i * 2..<1000 step i) {
-            arr[j] = false
-        }
-    }
+fun primes(size: Int = 1000): List<BigDecimal> {
+    val arr = Array(size) { true }
     return arr
-            .mapIndexedNotNull { index: Int, b: Boolean -> if (b && index > 1) index else null }
-            .map { it.toBigDecimal() }
+            .mapIndexedNotNull { index: Int, b: Boolean ->
+                when {
+                    b -> {
+                        for (j in index * 2 until size step index) {
+                            arr[j] = false
+                        }
+                        index.toBigDecimal()
+                    }
+                    else -> null
+                }
+            }
 }
 
 class LargeTest {

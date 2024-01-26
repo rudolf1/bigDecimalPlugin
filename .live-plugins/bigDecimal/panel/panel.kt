@@ -1,7 +1,6 @@
 package panel
 
 import com.intellij.openapi.fileTypes.FileTypeManager
-import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.psi.search.FileTypeIndex
@@ -11,11 +10,7 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.Align
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.builder.text
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import liveplugin.PluginUtil.show
 import org.jetbrains.annotations.ApiStatus
 import java.math.BigDecimal
 import java.util.*
@@ -59,21 +54,17 @@ fun onClick(tInput: JBTextField, output: JBTextArea, panel: DialogPanel, project
 
             }
         }
-//        val flow = factorize(
-//                listOf(input),
-//                numbers
-//        )
+        show("Searching: ${numbers.joinToString("\n") { it.toString() }}")
+
+        val flow = factorize(
+                listOf(input),
+                numbers
+        )
+        output.text = flow.joinToString("\n") { it.toString() }
 //        liveplugin.runBackgroundTask(
 //                taskTitle = "Background task",
 //                canBeCancelledInUI = true,
 //                task = { indicator: ProgressIndicator ->
-                    repeat(100) {
-//                        indicator.text = "Step: ${it}"
-                        output.text = "Step: ${it}"
-                        panel.apply()
-
-                        Thread.sleep(100)
-                    }
 //                    val coroutineScope = CoroutineScope(Job() + Dispatchers.IO)
 //                    flow
 //
