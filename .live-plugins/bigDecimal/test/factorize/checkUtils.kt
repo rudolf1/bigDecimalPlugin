@@ -1,8 +1,11 @@
+package factorize
+
 import org.junit.Assert
 import panel.Expression
 import panel.factorize
 import panel.toValue
 
+fun Expression.unround() = Expression.Round(this)
 fun check(
         expected: Expression,
         search: String,
@@ -13,7 +16,7 @@ fun check(
             listOf(search.toBigDecimal()),
             nums.map { it.toBigDecimal() },
             limitOps = opsCount,
-    ).toSet()
+    ).sortedBy { it.ops }
 
     if (!actual.contains(expected)) {
         println("${search.toValue().range}, expected ${expected.range}(ops ${expected.ops}): ${expected}")

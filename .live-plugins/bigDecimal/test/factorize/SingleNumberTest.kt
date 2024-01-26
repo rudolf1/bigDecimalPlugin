@@ -1,7 +1,7 @@
-//import liveplugin.PluginUtil.registerAction
+package factorize
 
 import org.junit.Test
-import panel.Expression
+import panel.Expression.Negate
 import panel.toValue
 
 
@@ -38,14 +38,14 @@ class SingleNumberTest {
 
     @Test
     fun sourceRoundedTo0_4() = check(
-            expected = "-100.5".toValue(),
+            expected = "-100.5".toValue().unround(),
             search = "-100",
             "-100.5"
     )
 
     @Test
     fun negateTest() = check(
-            expected = Expression.Negate("-100".toValue()),
+            expected = Negate("-100".toValue()),
             search = "100",
             "-100"
     )

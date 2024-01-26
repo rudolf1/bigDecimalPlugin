@@ -3,28 +3,42 @@ package panel
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-fun Expression.DecimalRange.normalize(): Expression.DecimalRange {
+fun DecimalRange.normalize(): DecimalRange {
     return if (this.start > this.end) {
-        Expression.DecimalRange(end, endInclusive, start, startInclusive, value = this.value)
+        DecimalRange(end, endInclusive, start, startInclusive, value = this.value)
     } else {
         this
     }
 }
 
-fun BigDecimal.toValue(): Expression.DecimalRange {
-    if (this == BigDecimal.ZERO) {
-        return Expression.DecimalRange("-0.5".toBigDecimal(), false, "0.5".toBigDecimal(), false, value = this).normalize()
-    }
-    val start = if (this.scale() != 0) {
-        BigDecimal(this.toPlainString() + "5")
-    } else {
-        BigDecimal(this.toPlainString() + ".5")
-    }
-    val end = this - (start - this)
-    return Expression.DecimalRange(start, false, end, true, value = this).normalize()
+fun BigDecimal.toValue(): Expression {
+    return Expression.DecimalValue(this)
 }
 
-fun String.toValue(): Expression.DecimalRange = BigDecimal(this).toValue()
+fun String.toValue(): Expression = BigDecimal(this).toValue()
+
+
+data class DecimalRange(val start: BigDecimal, val startInclusive: Boolean,
+                        val end: BigDecimal, val endInclusive: Boolean, val value: BigDecimal? = null
+) {
+    override fun toString(): String {
+        return listOfNotNull(
+                value?.toPlainString(),
+                if (start != end) {
+                    listOf(
+                            if (startInclusive) "[" else "(",
+                            start.roundX(10),
+                            "..",
+                            end.roundX(10),
+                            if (endInclusive) "]" else ")"
+                    ).joinToString("", prefix = "{", postfix = "}")
+                } else {
+                    null
+                }
+        ).joinToString("")
+    }
+}
+
 sealed class Expression {
     abstract val range: DecimalRange
     abstract val ops: Int
@@ -33,9 +47,9 @@ sealed class Expression {
         val r2 = other.range
         return when {
             r1.endInclusive && r2.startInclusive && r1.end < r2.start -> false
-            r1.end <= r2.start -> false
+            !(r1.endInclusive && r2.startInclusive) && r1.end <= r2.start -> false
             r2.endInclusive && r1.startInclusive && r2.end < r1.start -> false
-            r2.end < r1.start -> false
+            !(r2.endInclusive && r1.startInclusive) && r2.end < r1.start -> false
             else -> true
         }
     }
@@ -51,28 +65,66 @@ sealed class Expression {
         }
     }
 
-    data class DecimalRange(val start: BigDecimal, val startInclusive: Boolean,
-                            val end: BigDecimal, val endInclusive: Boolean, val value: BigDecimal? = null
-    ) : Expression() {
+    data class DecimalValue(val value: BigDecimal) : Expression() {
         override val range: DecimalRange
-            get() = this
+            get() = DecimalRange(start = value,
+                    startInclusive = true,
+                    end = value,
+                    endInclusive = true
+            )
         override val ops: Int
             get() = 0
 
         override fun toString(): String {
+            return value.roundX(10).toPlainString()
+        }
+    }
+
+    data class Round(val value: Expression) : Expression() {
+        private fun BigDecimal.toRoundRange(): DecimalRange {
+            if (this == BigDecimal.ZERO) {
+                return DecimalRange("-0.5".toBigDecimal(), false, "0.5".toBigDecimal(), false).normalize()
+            }
+            val start = if (this.scale() != 0) {
+                BigDecimal(this.toPlainString() + "5")
+            } else {
+                BigDecimal(this.toPlainString() + ".5")
+            }
+            val end = this - (start - this)
+            return DecimalRange(start, false, end, true).normalize()
+        }
+
+        override val range: DecimalRange
+            get() {
+                if (value !is DecimalValue) {
+                    val r = value.range
+                    val r1 = r.start.toRoundRange()
+                    val r2 = r.end.toRoundRange()
+                    return DecimalRange(
+                            if (r.startInclusive) r1.start else r1.end,
+                            r.startInclusive,
+                            if (r.endInclusive) r2.end else r2.start,
+                            r2.endInclusive
+                    )
+                }
+                return value.value.toRoundRange()
+            }
+        override val ops: Int
+            get() = value.ops + 1
+
+        override fun toString(): String {
+
+            val r = range
             return listOfNotNull(
-                    value?.toPlainString(),
-                    if (start != end) {
-                        listOf(
-                                if (startInclusive) "[" else "(",
-                                start.roundX(10),
-                                "..",
-                                end.roundX(10),
-                                if (endInclusive) "]" else ")"
-                        ).joinToString("", prefix = "{", postfix = "}")
-                    } else {
-                        null
-                    }
+                    "Round(",
+                    value.toString(),
+                    "{",
+                    if (r.startInclusive) "[" else "(",
+                    r.start.roundX(10),
+                    "..",
+                    r.end.roundX(10),
+                    if (r.endInclusive) "]" else ")",
+                    "})",
             ).joinToString("")
         }
     }
@@ -178,7 +230,8 @@ sealed class Expression {
     companion object {
         val one = listOf<(Expression) -> Expression>(
                 { Negate(it) },
-                { Reverse(it) }
+//                { Round(it) },
+//                { Reverse(it) }
         )
         val two = listOf<(Expression, Expression) -> Expression>(
                 { a, b -> Plus(a, b) },
